@@ -46,6 +46,7 @@ theme('color_note_pending', 'bold magenta', 'color of note in pending cells')
 theme('color_note_type', '226 yellow', 'color of cell note for non-str types in anytype columns')
 theme('color_note_row', '220 yellow', 'color of row note on left edge')
 theme('scroll_incr', 3, 'amount to scroll with scrollwheel')
+theme('scrolloff', 0, 'amount of lines to keep above or below cursor')
 theme('disp_column_sep', '|', 'separator between columns')
 theme('disp_keycol_sep', '║', 'separator between key columns and rest of columns')
 theme('disp_rowtop_sep', '|', '') # ╷│┬╽⌜⌐▇
@@ -183,7 +184,7 @@ class TableSheet(BaseSheet):
     def __init__(self, *names, **kwargs):
         super().__init__(*names, **kwargs)
         self.rows = UNLOADED      # list of opaque row objects (UNLOADED before first reload)
-        self.cursorRowIndex = 0  # absolute index of cursor into self.rows
+        self._cursorRowIndex = 0  # absolute index of cursor into self.rows
         self.cursorVisibleColIndex = 0  # index of cursor into self.visibleCols
 
         self._topRowIndex = 0     # cursorRowIndex of topmost row
@@ -202,6 +203,23 @@ class TableSheet(BaseSheet):
         self.setKeys(self.columns[:self.nKeys])  # initial list of key columns
 
         self.__dict__.update(kwargs)  # also done earlier in BaseSheet.__init__
+
+    @property
+    def cursorRowIndex(self):
+        return self._cursorRowIndex
+
+    @cursorRowIndex.setter
+    def cursorRowIndex(self, value):
+        delta = value - self._cursorRowIndex
+        self._cursorRowIndex = value
+        # When scrolloff set to big number, eg. 999, place cursor in the middle of screen
+        scrolloff = min(options.scrolloff, int(self.nScreenRows/2))
+
+        if self.topRowIndex + scrolloff >= self._cursorRowIndex:
+            self.topRowIndex = self._cursorRowIndex-int(scrolloff)
+        elif self.topRowIndex + int(self.nScreenRows-scrolloff) <= self._cursorRowIndex:
+            self.topRowIndex = self._cursorRowIndex-int(self.nScreenRows-scrolloff)
+
 
     @property
     def topRowIndex(self):
